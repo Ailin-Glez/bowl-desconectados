@@ -33,12 +33,9 @@ export default function StageView() {
   const [activeTab, setActiveTab] = useState('stage')
   const [entries, setEntries] = useState([])
   const [config, setConfig] = useState(DEFAULTS)
-  const [currentMatch, setCurrentMatch] = useState(null)
 
-  // Revealed question state
-  const [revealedQuestion, setRevealedQuestion] = useState('')
-  const [revealedInput, setRevealedInput] = useState('')
-  const [revealedSaved, setRevealedSaved] = useState(false)
+  // Manual order (array of IDs)
+  const [order, setOrder] = useState([])
 
   // Inline edit
   const [editingId, setEditingId] = useState(null)
@@ -59,6 +56,13 @@ export default function StageView() {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
       setEntries(items)
+      setOrder(prev => {
+        const existing = new Set(prev)
+        const incoming = new Set(items.map(e => e.id))
+        const kept = prev.filter(id => incoming.has(id))
+        const added = items.map(e => e.id).filter(id => !existing.has(id))
+        return [...kept, ...added]
+      })
     })
   }, [])
 
@@ -69,41 +73,12 @@ export default function StageView() {
         const d = snap.data()
         const questions = d.questions?.length ? d.questions : DEFAULT_QUESTIONS
         const nombre = d.nombre || DEFAULTS.nombre
-        const revealed = d.revealedQuestion || ''
         setConfig({ questions, nombre })
         setQuestionsText(questions.join('\n'))
         setNombreForm(nombre)
-        setRevealedQuestion(revealed)
-        setRevealedInput(revealed)
       }
     })
   }, [])
-
-  // Match = revealed question + random banal answer
-  const generateMatch = () => {
-    if (!entries.length) return
-    const entry = rand(entries)
-    setCurrentMatch({
-      pregunta: revealedQuestion || '(configura la pregunta revelada primero)',
-      respuesta: entry.text,
-      banalQuestion: entry.question,
-    })
-  }
-
-  const promoteToMatch = (entry) => {
-    setCurrentMatch({
-      pregunta: revealedQuestion || '(configura la pregunta revelada primero)',
-      respuesta: entry.text,
-      banalQuestion: entry.question,
-    })
-  }
-
-  const saveRevealedQuestion = async () => {
-    if (!isConfigured) return
-    await setDoc(doc(db, 'config', 'main'), { revealedQuestion: revealedInput }, { merge: true })
-    setRevealedSaved(true)
-    setTimeout(() => setRevealedSaved(false), 2000)
-  }
 
   const addSample = async () => {
     if (!isConfigured) return
@@ -120,7 +95,6 @@ export default function StageView() {
     if (!isConfigured) return
     if (!confirm('¿Limpiar todas las entradas?')) return
     await Promise.all(entries.map(e => deleteDoc(doc(db, 'entries', e.id))))
-    setCurrentMatch(null)
   }
 
   const saveConfig = async () => {
@@ -131,6 +105,21 @@ export default function StageView() {
     setTimeout(() => setSavedMsg(false), 2000)
   }
 
+  const moveEntry = (id, dir) => {
+    setOrder(prev => {
+      const idx = prev.indexOf(id)
+      const next = idx + dir
+      if (next < 0 || next >= prev.length) return prev
+      const arr = [...prev]
+      ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+      return arr
+    })
+  }
+
+  const deleteEntry = async (id) => {
+    await deleteDoc(doc(db, 'entries', id))
+  }
+
   const startEdit = (entry) => {
     setEditingId(entry.id)
     setEditText(entry.text)
@@ -139,9 +128,6 @@ export default function StageView() {
   const saveEdit = async (id) => {
     if (!editText.trim()) return
     await updateDoc(doc(db, 'entries', id), { text: editText.trim() })
-    if (currentMatch?.respuesta && editingId === id) {
-      setCurrentMatch(m => ({ ...m, respuesta: editText.trim() }))
-    }
     setEditingId(null)
   }
 
@@ -198,52 +184,16 @@ export default function StageView() {
                 </button>
               </div>
               <div className="qr-hint">
-                El público responde preguntas banales — sin saber la pregunta real
+                El público responde preguntas — sus respuestas aparecen abajo en tiempo real
               </div>
-            </div>
-
-            {/* Pregunta revelada */}
-            <div className="revealed-section">
-              <div className="revealed-header">
-                <span className="revealed-label-text">
-                  <i className="ti ti-eye-off" /> Pregunta revelada — solo tú la ves
-                </span>
-              </div>
-              {revealedQuestion ? (
-                <div className="revealed-display">
-                  <div className="revealed-text">{revealedQuestion}</div>
-                </div>
-              ) : (
-                <div style={{ color: 'var(--text-tertiary)', fontSize: 13, marginBottom: 10 }}>
-                  Todavía no configurada — escríbela abajo
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <input
-                  type="text"
-                  className="config-input"
-                  style={{ flex: 1 }}
-                  value={revealedInput}
-                  onChange={e => setRevealedInput(e.target.value)}
-                  placeholder="¿Qué le dirías a la persona que más amás?"
-                  onKeyDown={e => e.key === 'Enter' && saveRevealedQuestion()}
-                />
-                <button className="ctrl-btn primary" onClick={saveRevealedQuestion}>
-                  <i className="ti ti-check" /> Guardar
-                </button>
-              </div>
-              {revealedSaved && <div style={{ fontSize: 12, color: 'var(--accent2)', marginTop: 6 }}>¡Guardada!</div>}
             </div>
 
             {/* Controls */}
             <div className="stage-header">
-              <div className="stage-title"><i className="ti ti-device-tv" /> Pantalla del escenario</div>
+              <div className="stage-title"><i className="ti ti-messages" /> Respuestas del público</div>
               <div className="stage-count">{entries.length} {entries.length === 1 ? 'respuesta' : 'respuestas'}</div>
             </div>
             <div className="stage-controls">
-              <button className="ctrl-btn green" onClick={generateMatch} disabled={!entries.length}>
-                <i className="ti ti-shuffle" /> Generar match
-              </button>
               <button className="ctrl-btn primary" onClick={addSample}>
                 <i className="ti ti-plus" /> Agregar ejemplo
               </button>
@@ -252,47 +202,19 @@ export default function StageView() {
               </button>
             </div>
 
-            {/* Match display */}
-            <div className="match-display">
-              {currentMatch ? (
-                <div className="match-card featured">
-                  <div className="match-label"><i className="ti ti-heart" /> Pregunta revelada</div>
-                  <div className="match-text">{currentMatch.pregunta}</div>
-                  <div className="match-divider">
-                    <div className="match-divider-line" />
-                    <div className="match-divider-icon"><i className="ti ti-music" /></div>
-                    <div className="match-divider-line" />
-                  </div>
-                  <div className="match-label"><i className="ti ti-message-circle" /> Respuesta del público</div>
-                  <div className="match-text">{currentMatch.respuesta}</div>
-                  {currentMatch.banalQuestion && (
-                    <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                      (respondían: "{currentMatch.banalQuestion}")
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <i className="ti ti-music" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
-                  {entries.length === 0
-                    ? <>Todavía no hay respuestas.<br />Agregá ejemplos o esperá que el público participe.</>
-                    : <>Configurá la pregunta revelada y presioná "Generar match".</>
-                  }
-                </div>
-              )}
-            </div>
-
             {/* Queue */}
             <div className="queue-section">
-              <div className="queue-header">
-                <span>Respuestas del público</span>
-                <span>{entries.length} en el bowl</span>
-              </div>
               <div className="queue-list">
                 {entries.length === 0 ? (
-                  <div className="empty-state" style={{ padding: '0.75rem' }}>Sin respuestas todavía</div>
+                  <div className="empty-state" style={{ padding: '0.75rem' }}>
+                    <i className="ti ti-music" style={{ fontSize: 28, display: 'block', marginBottom: 8 }} />
+                    Sin respuestas todavía. Esperá que el público participe o agregá ejemplos.
+                  </div>
                 ) : (
-                  entries.map(entry => (
+                  order
+                    .map(id => entries.find(e => e.id === id))
+                    .filter(Boolean)
+                    .map((entry, idx) => (
                     <div key={entry.id} className="queue-item">
                       {editingId === entry.id ? (
                         <div style={{ flex: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -316,7 +238,8 @@ export default function StageView() {
                         </div>
                       ) : (
                         <>
-                          <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => promoteToMatch(entry)} title="Usar en match">
+                          <div className="queue-item-num">{idx + 1}</div>
+                          <div style={{ flex: 1 }}>
                             <div>{entry.text}</div>
                             {entry.question && (
                               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3 }}>
@@ -324,14 +247,20 @@ export default function StageView() {
                               </div>
                             )}
                           </div>
-                          <button
-                            className="ctrl-btn"
-                            style={{ padding: '4px 8px', marginLeft: 6, flexShrink: 0 }}
-                            onClick={(e) => { e.stopPropagation(); startEdit(entry) }}
-                            title="Editar respuesta"
-                          >
-                            <i className="ti ti-pencil" />
-                          </button>
+                          <div className="queue-actions">
+                            <button className="ctrl-btn" style={{ padding: '4px 6px' }} onClick={() => moveEntry(entry.id, -1)} disabled={idx === 0} title="Subir">
+                              <i className="ti ti-chevron-up" />
+                            </button>
+                            <button className="ctrl-btn" style={{ padding: '4px 6px' }} onClick={() => moveEntry(entry.id, 1)} disabled={idx === order.length - 1} title="Bajar">
+                              <i className="ti ti-chevron-down" />
+                            </button>
+                            <button className="ctrl-btn" style={{ padding: '4px 6px' }} onClick={() => startEdit(entry)} title="Editar">
+                              <i className="ti ti-pencil" />
+                            </button>
+                            <button className="ctrl-btn" style={{ padding: '4px 6px', color: 'var(--accent)' }} onClick={() => deleteEntry(entry.id)} title="Eliminar">
+                              <i className="ti ti-trash" />
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>

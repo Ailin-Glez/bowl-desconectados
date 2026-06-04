@@ -213,7 +213,7 @@ export default function AudienceView() {
             <div className="sent-icon"><i className="ti ti-music" /></div>
             <div className="sent-title">¡Ya estás en el bowl!</div>
             <div className="sent-sub">
-              Tus {TOTAL} respuestas llegaron. Quédate atento — pueden convertirse en canción.
+              Tus {TOTAL} respuestas llegaron. Quédate atent@ — pueden convertirse en canción.
             </div>
           </div>
         )}

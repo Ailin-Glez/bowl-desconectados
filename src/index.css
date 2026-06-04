@@ -180,18 +180,30 @@ body {
 }
 .queue-item {
   background: var(--bg-secondary);
-  border: 0.5px solid var(--border-tertiary);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-md);
   padding: 10px 12px;
   font-size: 13px;
   color: var(--text-primary);
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
-  transition: border-color .15s;
+  transition: border-color .15s, background .15s;
 }
-.queue-item:hover { border-color: var(--accent); }
+.queue-item:nth-child(odd) { background: var(--bg-tertiary); }
+.queue-item:hover { border-color: var(--accent); background: var(--bg-secondary); }
+.queue-item-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 18px;
+  padding-top: 1px;
+  flex-shrink: 0;
+  font-family: var(--font-sans);
+  letter-spacing: 0.5px;
+}
+.queue-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; margin-left: 6px; }
 
 /* ── Config section ─────────────────────────────── */
 .config-section { padding: 1.25rem; }
