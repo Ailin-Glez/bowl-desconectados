@@ -50,7 +50,7 @@ export default function StageView() {
   const [savedMsg, setSavedMsg] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const audienceUrl = `${window.location.origin}/p`
+  const audienceUrl = `${window.location.origin}/`
 
   useEffect(() => {
     if (!isConfigured) return

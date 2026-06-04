@@ -7,8 +7,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<StageView />} />
-        <Route path="/p" element={<AudienceView />} />
+        <Route path="/" element={<AudienceView />} />
+        <Route path="/admin" element={<StageView />} />
         <Route path="/show" element={<ShowView />} />
       </Routes>
     </BrowserRouter>
