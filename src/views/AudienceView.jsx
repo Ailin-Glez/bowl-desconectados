@@ -47,7 +47,6 @@ export default function AudienceView() {
   useEffect(() => {
     if (!isConfigured) return
     const session = loadSession()
-    if (session?.done) { setStatus('done'); return }
     if (session?.questions) {
       setQuestions(session.questions)
       setAnswers(session.answers || ['', ''])
@@ -104,7 +103,6 @@ export default function AudienceView() {
         createdAt: serverTimestamp(),
       })
       clearSession()
-      saveSession({ done: true })
       setStatus('done')
     } catch {
       setStatus('error')
@@ -208,8 +206,11 @@ export default function AudienceView() {
             <div className="sent-icon"><i className="ti ti-music" /></div>
             <div className="sent-title">¡Ya estás en el bowl!</div>
             <div className="sent-sub">
-              Tus {TOTAL} respuestas llegaron. Quédate atent@ — pueden convertirse en canción.
+              Tus respuestas llegaron. Quedate atent@ — pueden convertirse en canción esta noche.
             </div>
+            <button className="again-btn" onClick={() => { clearSession(); setAnswers(['', '']); setStep(0); setStatus('intro') }}>
+              Responder de nuevo
+            </button>
           </div>
         )}
 

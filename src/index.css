@@ -371,9 +371,9 @@ textarea:focus { outline: none; border-color: var(--accent); }
 
 /* ── Feedback states ────────────────────────────── */
 .sent-msg { text-align: center; padding: 2rem 0; }
-.sent-icon { font-size: 40px; color: var(--accent2); margin-bottom: 12px; }
-.sent-title { font-size: 18px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px; }
-.sent-sub { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+.sent-icon { font-size: 56px; color: var(--accent2); margin-bottom: 20px; }
+.sent-title { font-size: 28px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; line-height: 1.2; }
+.sent-sub { font-size: 17px; color: var(--text-secondary); line-height: 1.6; }
 .again-btn {
   margin-top: 1.5rem;
   background: none;
