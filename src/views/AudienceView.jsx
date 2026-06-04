@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, runTransaction, collection, writeBatch, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { doc, collection, writeBatch, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 
@@ -56,32 +56,12 @@ export default function AudienceView() {
     setStatus('intro')
   }, [])
 
-  const assignQuestions = async () => {
-    try {
-      const configRef = doc(db, 'config', 'main')
-      const assigned = await runTransaction(db, async tx => {
-        const snap = await tx.get(configRef)
-        let counter, qs
-        if (!snap.exists()) {
-          counter = 1; qs = DEFAULT_QUESTIONS
-          tx.set(configRef, { ...DEFAULTS, counter })
-        } else {
-          counter = (snap.data().counter ?? 0) + 1
-          qs = snap.data().questions?.length ? snap.data().questions : DEFAULT_QUESTIONS
-          tx.update(configRef, { counter })
-        }
-        const start = (counter - 1) % qs.length
-        return Array.from({ length: TOTAL }, (_, i) => qs[(start + i) % qs.length])
-      })
-      setQuestions(assigned)
-      saveSession({ questions: assigned, answers: ['', '', ''], step: 0 })
-      setStatus('form')
-    } catch {
-      const fallback = DEFAULT_QUESTIONS.slice(0, TOTAL)
-      setQuestions(fallback)
-      saveSession({ questions: fallback, answers: ['', '', ''], step: 0 })
-      setStatus('form')
-    }
+  const assignQuestions = () => {
+    const qs = config.questions?.length ? config.questions : DEFAULT_QUESTIONS
+    const assigned = qs.slice(0, TOTAL)
+    setQuestions(assigned)
+    saveSession({ questions: assigned, answers: ['', '', ''], step: 0 })
+    setStatus('form')
   }
 
   const updateAnswer = (val) => {
