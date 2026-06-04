@@ -18,25 +18,17 @@ const DEFAULTS = { questions: DEFAULT_QUESTIONS, nombre: 'Des-conectados' }
 
 const SAMPLE_PAIRS = [
   {
-    molesta: 'Que mastiquen con la boca abierta y además lo disfruten',
-    morir: 'Que alguien baje el volumen, por favor',
+    molesta: 'Que mastiquen con la boca abierta',
+    morir: 'Yo tenía razón',
   },
   {
     molesta: 'Que lleguen tarde y encima vengan de buen humor',
     morir: 'Debí haber dormido más',
   },
   {
-    molesta: 'Que digan "ya casi llego" desde la cama',
-    morir: 'Que quede registrado que yo tenía razón',
-  },
-  {
-    molesta: 'Que me pregunten "¿estás bien?" con esa cara',
+    molesta: 'Que hablen en altavoz',
     morir: 'Ojalá hubiera comido más empanadas',
-  },
-  {
-    molesta: 'Que pongan el altavoz sin avisar',
-    morir: 'El wifi nunca funcionó cuando más lo necesité',
-  },
+  }
 ]
 
 function rand(arr) {

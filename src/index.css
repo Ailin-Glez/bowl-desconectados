@@ -389,13 +389,22 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .loading-msg { text-align: center; padding: 3rem 0; color: var(--text-tertiary); font-size: 15px; }
 
 /* ── Show / projection view ─────────────────────── */
+@keyframes answerIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes showIntroFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 .show-logo {
   position: absolute;
   top: 3vh;
   right: 4vw;
 }
 .show-logo img {
-  height: clamp(80px, 13vh, 160px);
+  height: clamp(100px, 16vh, 200px);
   width: auto;
   opacity: 0.95;
 }
@@ -405,35 +414,38 @@ textarea:focus { outline: none; border-color: var(--accent); }
   background: #0f0f0f;
   display: flex;
   flex-direction: column;
-  padding: 5vh 7vw 3vh;
+  justify-content: center;
+  padding: 5vh 8vw;
   position: relative;
   box-sizing: border-box;
+  animation: showIntroFade .6s ease;
 }
-.show-question-section {
-  flex-shrink: 0;
+.show-intro {
+  align-items: center;
+  justify-content: center;
+  gap: 6vh;
 }
-.show-question-label {
-  font-size: clamp(12px, 1.4vw, 20px);
+.show-intro-logo {
+  height: clamp(120px, 22vh, 280px);
+  width: auto;
+  opacity: 0.95;
+}
+.show-start-btn {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 60px;
+  color: rgba(255,255,255,0.5);
+  font-size: clamp(14px, 1.6vw, 22px);
+  font-family: var(--font-sans);
+  letter-spacing: 3px;
   text-transform: uppercase;
-  letter-spacing: 4px;
-  color: #D85A30;
-  margin-bottom: 0.6rem;
-  font-family: var(--font-sans);
+  padding: 1.2vh 4vw;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
 }
-.show-question-text {
-  font-size: clamp(24px, 2.8vw, 46px);
-  color: rgba(255,255,255,0.55);
-  line-height: 1.3;
-  font-weight: 400;
-  max-width: 75vw;
-  font-family: var(--font-sans);
-}
-.show-divider {
-  width: 48px;
-  height: 2px;
-  background: #D85A30;
-  margin: 2.5vh 0;
-  flex-shrink: 0;
+.show-start-btn:hover {
+  border-color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.9);
 }
 .show-answer-section {
   flex: 1;
@@ -443,22 +455,16 @@ textarea:focus { outline: none; border-color: var(--accent); }
   min-height: 0;
 }
 .show-answer-text {
-  font-size: clamp(48px, 7vw, 110px);
+  font-size: clamp(56px, 9vw, 140px);
   color: #F5C542;
   line-height: 1.15;
   font-weight: 600;
-  max-width: 85vw;
+  max-width: 88vw;
   font-family: var(--font-sans);
-}
-.show-answer-sub {
-  margin-top: 1.2rem;
-  font-size: clamp(13px, 1.3vw, 18px);
-  color: rgba(255,255,255,0.18);
-  font-style: italic;
-  font-family: var(--font-sans);
+  animation: answerIn .45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .show-waiting {
-  font-size: clamp(20px, 3vw, 40px);
+  font-size: clamp(24px, 3vw, 44px);
   color: rgba(255,255,255,0.15);
   font-family: var(--font-sans);
 }

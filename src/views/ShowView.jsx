@@ -1,12 +1,30 @@
-import { useState, useEffect } from 'react'
-import { doc, collection, onSnapshot } from 'firebase/firestore'
+import { useState, useEffect, useRef } from 'react'
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 
 export default function ShowView() {
   const [entries, setEntries] = useState([])
-  const [revealedQuestion, setRevealedQuestion] = useState('')
   const [index, setIndex] = useState(0)
+  const [started, setStarted] = useState(false)
+  const totalRef = useRef(0)
+
+  const syncTimeout = useRef(null)
+  const pushState = (updates) => {
+    if (!isConfigured) return
+    clearTimeout(syncTimeout.current)
+    syncTimeout.current = setTimeout(() => {
+      setDoc(doc(db, 'config', 'main'), updates, { merge: true })
+    }, 150)
+  }
+
+  const navigate = (i) => {
+    const clamped = Math.max(0, Math.min(i, totalRef.current - 1))
+    setIndex(clamped)
+    pushState({ showIndex: clamped })
+  }
+
+  const startShow = () => pushState({ showStarted: true })
 
   useEffect(() => {
     if (!isConfigured) return
@@ -15,88 +33,73 @@ export default function ShowView() {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
       setEntries(items)
+      totalRef.current = items.length
     })
   }, [])
 
   useEffect(() => {
     if (!isConfigured) return
     return onSnapshot(doc(db, 'config', 'main'), snap => {
-      if (snap.exists()) setRevealedQuestion(snap.data().revealedQuestion || '')
+      if (snap.exists()) {
+        const d = snap.data()
+        setIndex(d.showIndex ?? 0)
+        setStarted(d.showStarted ?? false)
+      }
     })
   }, [])
 
-  // Keyboard navigation
   useEffect(() => {
     const onKey = (e) => {
+      if (!started) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startShow() }
+        return
+      }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
         e.preventDefault()
-        setIndex(i => Math.min(i + 1, entries.length - 1))
+        setIndex(i => { const next = Math.min(i + 1, totalRef.current - 1); pushState({ showIndex: next }); return next })
       }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault()
-        setIndex(i => Math.max(i - 1, 0))
+        setIndex(i => { const next = Math.max(i - 1, 0); pushState({ showIndex: next }); return next })
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [entries.length])
-
-  // Keep index in bounds as entries arrive
-  useEffect(() => {
-    if (entries.length > 0 && index >= entries.length) {
-      setIndex(entries.length - 1)
-    }
-  }, [entries.length])
+  }, [started])
 
   const current = entries[index]
   const total = entries.length
 
+  if (!started) {
+    return (
+      <div className="show-page show-intro">
+        <img src={logo} alt="Des-conectados" className="show-intro-logo" />
+        <button className="show-start-btn" onClick={startShow}>
+          Empezar
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="show-page">
-      {/* Logo */}
       <div className="show-logo">
         <img src={logo} alt="Des-conectados" />
       </div>
 
-      {/* Pregunta revelada */}
-      <div className="show-question-section">
-        <div className="show-question-label">Pregunta</div>
-        <div className="show-question-text">
-          {revealedQuestion || '—'}
-        </div>
-      </div>
-
-      <div className="show-divider" />
-
-      {/* Respuesta */}
       <div className="show-answer-section">
         {total === 0 ? (
           <div className="show-waiting">Esperando respuestas...</div>
         ) : current ? (
-          <>
-            <div className="show-answer-text">"{current.text}"</div>
-          </>
+          <div key={index} className="show-answer-text">"{current.text}"</div>
         ) : null}
       </div>
 
-      {/* Navegación */}
       {total > 0 && (
         <div className="show-nav">
-          <button
-            className="show-nav-btn"
-            onClick={() => setIndex(i => Math.max(i - 1, 0))}
-            disabled={index === 0}
-          >
-            ←
-          </button>
+          <button className="show-nav-btn" onClick={() => navigate(index - 1)} disabled={index === 0}>←</button>
           <span className="show-nav-count">{index + 1} / {total}</span>
-          <button
-            className="show-nav-btn"
-            onClick={() => setIndex(i => Math.min(i + 1, total - 1))}
-            disabled={index === total - 1}
-          >
-            →
-          </button>
+          <button className="show-nav-btn" onClick={() => navigate(index + 1)} disabled={index === total - 1}>→</button>
         </div>
       )}
     </div>
