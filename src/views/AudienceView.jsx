@@ -12,6 +12,7 @@ const DEFAULT_QUESTIONS = [
 
 const DEFAULTS = { questions: DEFAULT_QUESTIONS, nombre: 'Des-conectados' }
 const TOTAL = 2
+const STEP_COLORS = ['#D85A30', '#1D9E75']
 
 function loadSession() {
   try {
@@ -169,16 +170,16 @@ export default function AudienceView() {
             <div className="audience-hint">
               Mientras más ridícula la respuesta, mejor. Nadie te va a juzgar (mucho).
             </div>
-            <div className="question-box">
-              <div className="question-label">
+            <div className="question-box" style={{ background: STEP_COLORS[step], borderLeft: 'none' }}>
+              <div className="question-label" style={{ color: 'rgba(255,255,255,0.75)' }}>
                 Pregunta {step + 1} de {TOTAL}
                 <span className="step-dots">
                   {Array.from({ length: TOTAL }, (_, i) => (
-                    <span key={i} className={`step-dot ${i <= step ? 'active' : ''}`} />
+                    <span key={i} className="step-dot" style={{ background: i <= step ? STEP_COLORS[i] : undefined }} />
                   ))}
                 </span>
               </div>
-              <div className="question-text">{questions[step]}</div>
+              <div className="question-text" style={{ color: '#fff' }}>{questions[step]}</div>
             </div>
             <textarea
               placeholder="Tu respuesta aquí..."
@@ -189,11 +190,11 @@ export default function AudienceView() {
             />
             <div className="char-count">{answers[step].length}/120</div>
             {isLast ? (
-              <button className="send-btn" onClick={handleSubmit} disabled={!canAdvance || sending}>
+              <button className="send-btn" style={{ background: STEP_COLORS[step] }} onClick={handleSubmit} disabled={!canAdvance || sending}>
                 {sending ? 'Enviando...' : <><i className="ti ti-check" /> Enviar y terminar</>}
               </button>
             ) : (
-              <button className="send-btn" onClick={handleNext} disabled={!canAdvance || sending}>
+              <button className="send-btn" style={{ background: STEP_COLORS[step] }} onClick={handleNext} disabled={!canAdvance || sending}>
                 {sending ? 'Enviando...' : <><i className="ti ti-send" /> Enviar respuesta</>}
               </button>
             )}
