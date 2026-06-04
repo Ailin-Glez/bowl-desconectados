@@ -1,0 +1,385 @@
+import { useState, useEffect } from 'react'
+import {
+  collection, onSnapshot, doc, addDoc,
+  deleteDoc, setDoc, updateDoc, serverTimestamp,
+} from 'firebase/firestore'
+import { QRCodeSVG } from 'qrcode.react'
+import { db, isConfigured } from '../firebase'
+
+const DEFAULT_QUESTIONS = [
+  '¿Cuál es tu refrán favorito?',
+  '¿Cuál es la primera frase que dices al despertar?',
+  '¿Qué comiste hoy?',
+  '¿Qué cosas te molestan de los demás?',
+  '¿Qué fue lo último que buscaste en Google?'
+]
+
+const DEFAULTS = { questions: DEFAULT_QUESTIONS, nombre: 'Des-conectados' }
+
+const SAMPLE_RESPUESTAS = [
+  'Tres empanadas frías y mucho arrepentimiento',
+  'Mi vecino y una paloma muy sospechosa',
+  'El precio del aguacate en el supermercado',
+  'Porque el wifi nunca funciona cuando más lo necesito',
+  'Una playlist de Ed Sheeran y mucho llanto',
+  'Básicamente nada, y eso es lo peor',
+]
+
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+export default function StageView() {
+  const [activeTab, setActiveTab] = useState('stage')
+  const [entries, setEntries] = useState([])
+  const [config, setConfig] = useState(DEFAULTS)
+  const [currentMatch, setCurrentMatch] = useState(null)
+
+  // Revealed question state
+  const [revealedQuestion, setRevealedQuestion] = useState('')
+  const [revealedInput, setRevealedInput] = useState('')
+  const [revealedSaved, setRevealedSaved] = useState(false)
+
+  // Inline edit
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+
+  // Config form
+  const [questionsText, setQuestionsText] = useState(DEFAULT_QUESTIONS.join('\n'))
+  const [nombreForm, setNombreForm] = useState(DEFAULTS.nombre)
+  const [savedMsg, setSavedMsg] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const audienceUrl = `${window.location.origin}/p`
+
+  useEffect(() => {
+    if (!isConfigured) return
+    return onSnapshot(collection(db, 'entries'), snap => {
+      const items = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
+      setEntries(items)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isConfigured) return
+    return onSnapshot(doc(db, 'config', 'main'), snap => {
+      if (snap.exists()) {
+        const d = snap.data()
+        const questions = d.questions?.length ? d.questions : DEFAULT_QUESTIONS
+        const nombre = d.nombre || DEFAULTS.nombre
+        const revealed = d.revealedQuestion || ''
+        setConfig({ questions, nombre })
+        setQuestionsText(questions.join('\n'))
+        setNombreForm(nombre)
+        setRevealedQuestion(revealed)
+        setRevealedInput(revealed)
+      }
+    })
+  }, [])
+
+  // Match = revealed question + random banal answer
+  const generateMatch = () => {
+    if (!entries.length) return
+    const entry = rand(entries)
+    setCurrentMatch({
+      pregunta: revealedQuestion || '(configura la pregunta revelada primero)',
+      respuesta: entry.text,
+      banalQuestion: entry.question,
+    })
+  }
+
+  const promoteToMatch = (entry) => {
+    setCurrentMatch({
+      pregunta: revealedQuestion || '(configura la pregunta revelada primero)',
+      respuesta: entry.text,
+      banalQuestion: entry.question,
+    })
+  }
+
+  const saveRevealedQuestion = async () => {
+    if (!isConfigured) return
+    await setDoc(doc(db, 'config', 'main'), { revealedQuestion: revealedInput }, { merge: true })
+    setRevealedSaved(true)
+    setTimeout(() => setRevealedSaved(false), 2000)
+  }
+
+  const addSample = async () => {
+    if (!isConfigured) return
+    const questions = config.questions.length ? config.questions : DEFAULT_QUESTIONS
+    const q1 = questions[0]
+    const q2 = questions.length > 1 ? questions[1] : questions[0]
+    await Promise.all([
+      addDoc(collection(db, 'entries'), { text: rand(SAMPLE_RESPUESTAS), question: q1, createdAt: serverTimestamp() }),
+      addDoc(collection(db, 'entries'), { text: rand(SAMPLE_RESPUESTAS), question: q2, createdAt: serverTimestamp() }),
+    ])
+  }
+
+  const clearAll = async () => {
+    if (!isConfigured) return
+    if (!confirm('¿Limpiar todas las entradas?')) return
+    await Promise.all(entries.map(e => deleteDoc(doc(db, 'entries', e.id))))
+    setCurrentMatch(null)
+  }
+
+  const saveConfig = async () => {
+    if (!isConfigured) return
+    const questions = questionsText.split('\n').map(q => q.trim()).filter(Boolean)
+    await setDoc(doc(db, 'config', 'main'), { questions, nombre: nombreForm }, { merge: true })
+    setSavedMsg(true)
+    setTimeout(() => setSavedMsg(false), 2000)
+  }
+
+  const startEdit = (entry) => {
+    setEditingId(entry.id)
+    setEditText(entry.text)
+  }
+
+  const saveEdit = async (id) => {
+    if (!editText.trim()) return
+    await updateDoc(doc(db, 'entries', id), { text: editText.trim() })
+    if (currentMatch?.respuesta && editingId === id) {
+      setCurrentMatch(m => ({ ...m, respuesta: editText.trim() }))
+    }
+    setEditingId(null)
+  }
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(audienceUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (!isConfigured) {
+    return (
+      <div className="stage-page">
+        <div className="setup-screen">
+          <div className="phone-logo" style={{ marginBottom: 20 }}>Des-conectados</div>
+          <h2>Configuración inicial</h2>
+          <p>Crea un proyecto en <strong>Firebase Console</strong>, habilita Firestore y copia las credenciales en el archivo <code>.env</code>.</p>
+          <div className="setup-code">
+            VITE_FIREBASE_API_KEY=...<br />
+            VITE_FIREBASE_PROJECT_ID=...<br />
+            VITE_FIREBASE_APP_ID=...
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="stage-page">
+      <div className="container">
+        <div className="tabs">
+          <button className={`tab ${activeTab === 'stage' ? 'active' : ''}`} onClick={() => setActiveTab('stage')}>
+            <i className="ti ti-device-tv" /> Vista escenario
+          </button>
+          <button className={`tab ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
+            <i className="ti ti-settings" /> Configurar
+          </button>
+          <a href="/show" target="_blank" className="tab" style={{ textDecoration: 'none' }}>
+            <i className="ti ti-presentation" /> Proyección
+          </a>
+        </div>
+
+        {activeTab === 'stage' && (
+          <div className="stage-wrap">
+            {/* QR */}
+            <div className="qr-section">
+              <div className="qr-box">
+                <QRCodeSVG value={audienceUrl} size={156} bgColor="#ffffff" fgColor="#111111" />
+              </div>
+              <div className="qr-url">{audienceUrl}</div>
+              <div className="qr-actions">
+                <button className="ctrl-btn" onClick={copyUrl}>
+                  <i className={`ti ti-${copied ? 'check' : 'copy'}`} />
+                  {copied ? 'Copiado' : 'Copiar link'}
+                </button>
+              </div>
+              <div className="qr-hint">
+                El público responde preguntas banales — sin saber la pregunta real
+              </div>
+            </div>
+
+            {/* Pregunta revelada */}
+            <div className="revealed-section">
+              <div className="revealed-header">
+                <span className="revealed-label-text">
+                  <i className="ti ti-eye-off" /> Pregunta revelada — solo tú la ves
+                </span>
+              </div>
+              {revealedQuestion ? (
+                <div className="revealed-display">
+                  <div className="revealed-text">{revealedQuestion}</div>
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-tertiary)', fontSize: 13, marginBottom: 10 }}>
+                  Todavía no configurada — escríbela abajo
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <input
+                  type="text"
+                  className="config-input"
+                  style={{ flex: 1 }}
+                  value={revealedInput}
+                  onChange={e => setRevealedInput(e.target.value)}
+                  placeholder="¿Qué le dirías a la persona que más amás?"
+                  onKeyDown={e => e.key === 'Enter' && saveRevealedQuestion()}
+                />
+                <button className="ctrl-btn primary" onClick={saveRevealedQuestion}>
+                  <i className="ti ti-check" /> Guardar
+                </button>
+              </div>
+              {revealedSaved && <div style={{ fontSize: 12, color: 'var(--accent2)', marginTop: 6 }}>¡Guardada!</div>}
+            </div>
+
+            {/* Controls */}
+            <div className="stage-header">
+              <div className="stage-title"><i className="ti ti-device-tv" /> Pantalla del escenario</div>
+              <div className="stage-count">{entries.length} {entries.length === 1 ? 'respuesta' : 'respuestas'}</div>
+            </div>
+            <div className="stage-controls">
+              <button className="ctrl-btn green" onClick={generateMatch} disabled={!entries.length}>
+                <i className="ti ti-shuffle" /> Generar match
+              </button>
+              <button className="ctrl-btn primary" onClick={addSample}>
+                <i className="ti ti-plus" /> Agregar ejemplo
+              </button>
+              <button className="ctrl-btn" onClick={clearAll} disabled={!entries.length}>
+                <i className="ti ti-trash" /> Limpiar todo
+              </button>
+            </div>
+
+            {/* Match display */}
+            <div className="match-display">
+              {currentMatch ? (
+                <div className="match-card featured">
+                  <div className="match-label"><i className="ti ti-heart" /> Pregunta revelada</div>
+                  <div className="match-text">{currentMatch.pregunta}</div>
+                  <div className="match-divider">
+                    <div className="match-divider-line" />
+                    <div className="match-divider-icon"><i className="ti ti-music" /></div>
+                    <div className="match-divider-line" />
+                  </div>
+                  <div className="match-label"><i className="ti ti-message-circle" /> Respuesta del público</div>
+                  <div className="match-text">{currentMatch.respuesta}</div>
+                  {currentMatch.banalQuestion && (
+                    <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                      (respondían: "{currentMatch.banalQuestion}")
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <i className="ti ti-music" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
+                  {entries.length === 0
+                    ? <>Todavía no hay respuestas.<br />Agregá ejemplos o esperá que el público participe.</>
+                    : <>Configurá la pregunta revelada y presioná "Generar match".</>
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Queue */}
+            <div className="queue-section">
+              <div className="queue-header">
+                <span>Respuestas del público</span>
+                <span>{entries.length} en el bowl</span>
+              </div>
+              <div className="queue-list">
+                {entries.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '0.75rem' }}>Sin respuestas todavía</div>
+                ) : (
+                  entries.map(entry => (
+                    <div key={entry.id} className="queue-item">
+                      {editingId === entry.id ? (
+                        <div style={{ flex: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <input
+                            className="config-input"
+                            style={{ flex: 1, fontSize: 13, padding: '4px 8px' }}
+                            value={editText}
+                            onChange={e => setEditText(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') saveEdit(entry.id)
+                              if (e.key === 'Escape') setEditingId(null)
+                            }}
+                            autoFocus
+                          />
+                          <button className="ctrl-btn primary" style={{ padding: '4px 8px' }} onClick={() => saveEdit(entry.id)}>
+                            <i className="ti ti-check" />
+                          </button>
+                          <button className="ctrl-btn" style={{ padding: '4px 8px' }} onClick={() => setEditingId(null)}>
+                            <i className="ti ti-x" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => promoteToMatch(entry)} title="Usar en match">
+                            <div>{entry.text}</div>
+                            {entry.question && (
+                              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3 }}>
+                                Respondía: {entry.question}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            className="ctrl-btn"
+                            style={{ padding: '4px 8px', marginLeft: 6, flexShrink: 0 }}
+                            onClick={(e) => { e.stopPropagation(); startEdit(entry) }}
+                            title="Editar respuesta"
+                          >
+                            <i className="ti ti-pencil" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Config tab */}
+        {activeTab === 'config' && (
+          <div className="stage-wrap">
+            <div className="stage-header">
+              <div className="stage-title"><i className="ti ti-settings" /> Configuración del bowl</div>
+            </div>
+            <div className="config-section">
+              <div className="config-title"><i className="ti ti-list" /> Preguntas banales</div>
+              <div className="config-label">
+                Una por línea — el público las recibe en rotación sin saber la pregunta real
+              </div>
+              <textarea
+                style={{ minHeight: 180, marginBottom: 0 }}
+                value={questionsText}
+                onChange={e => setQuestionsText(e.target.value)}
+                placeholder={'¿Qué marca de shampoo usás?\n¿Qué comiste hoy?\n...'}
+              />
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4, marginBottom: 8 }}>
+                {questionsText.split('\n').filter(q => q.trim()).length} preguntas configuradas
+              </div>
+
+              <div className="config-title"><i className="ti ti-palette" /> Nombre del show</div>
+              <div className="config-label">Aparece en la pantalla del público</div>
+              <input
+                type="text"
+                className="config-input"
+                value={nombreForm}
+                onChange={e => setNombreForm(e.target.value)}
+              />
+
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button className="save-btn" onClick={saveConfig}>Guardar cambios</button>
+                {savedMsg && <span className="saved-msg">¡Guardado!</span>}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
