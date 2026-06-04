@@ -75,9 +75,6 @@ export default function ShowView() {
         ) : current ? (
           <>
             <div className="show-answer-text">"{current.text}"</div>
-            {current.question && (
-              <div className="show-answer-sub">respondía: {current.question}</div>
-            )}
           </>
         ) : null}
       </div>

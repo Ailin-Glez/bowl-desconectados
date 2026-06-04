@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, collection, writeBatch, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { doc, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 
@@ -11,7 +11,7 @@ const DEFAULT_QUESTIONS = [
 ]
 
 const DEFAULTS = { questions: DEFAULT_QUESTIONS, nombre: 'Des-conectados' }
-const TOTAL = 3
+const TOTAL = 2
 
 function loadSession() {
   try {
@@ -32,7 +32,8 @@ export default function AudienceView() {
   const [status, setStatus] = useState('loading') // loading | form | sending | done | error
   const [config, setConfig] = useState(DEFAULTS)
   const [questions, setQuestions] = useState([])   // 3 assigned questions
-  const [answers, setAnswers] = useState(['', '', ''])
+  const [answers, setAnswers] = useState(['', ''])
+  const [sending, setSending] = useState(false)
   const [step, setStep] = useState(0)
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function AudienceView() {
     if (session?.done) { setStatus('done'); return }
     if (session?.questions) {
       setQuestions(session.questions)
-      setAnswers(session.answers || ['', '', ''])
+      setAnswers(session.answers || ['', ''])
       setStep(session.step || 0)
       setStatus('form')
       return
@@ -60,7 +61,7 @@ export default function AudienceView() {
     const qs = config.questions?.length ? config.questions : DEFAULT_QUESTIONS
     const assigned = qs.slice(0, TOTAL)
     setQuestions(assigned)
-    saveSession({ questions: assigned, answers: ['', '', ''], step: 0 })
+    saveSession({ questions: assigned, answers: ['', ''], step: 0 })
     setStatus('form')
   }
 
@@ -72,29 +73,42 @@ export default function AudienceView() {
     saveSession({ ...session, answers: next })
   }
 
-  const handleNext = () => {
-    const next = step + 1
-    setStep(next)
-    const session = loadSession() || {}
-    saveSession({ ...session, step: next })
+  const handleNext = async () => {
+    if (!isConfigured || sending) return
+    setSending(true)
+    try {
+      await addDoc(collection(db, 'entries'), {
+        text: answers[step].trim(),
+        question: questions[step],
+        createdAt: serverTimestamp(),
+      })
+      const next = step + 1
+      setStep(next)
+      const session = loadSession() || {}
+      saveSession({ ...session, step: next })
+    } catch {
+      setStatus('error')
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleSubmit = async () => {
-    if (!isConfigured) return
-    setStatus('sending')
+    if (!isConfigured || sending) return
+    setSending(true)
     try {
-      const batch = writeBatch(db)
-      const colRef = collection(db, 'entries')
-      questions.forEach((q, i) => {
-        const ref = doc(colRef)
-        batch.set(ref, { text: answers[i].trim(), question: q, createdAt: serverTimestamp() })
+      await addDoc(collection(db, 'entries'), {
+        text: answers[step].trim(),
+        question: questions[step],
+        createdAt: serverTimestamp(),
       })
-      await batch.commit()
       clearSession()
       saveSession({ done: true })
       setStatus('done')
     } catch {
       setStatus('error')
+    } finally {
+      setSending(false)
     }
   }
 
@@ -134,7 +148,7 @@ export default function AudienceView() {
               <h2 className="intro-title">¡Eres parte del show!</h2>
             </div>
             <p className="intro-body">
-              Responde <strong>3 preguntas cortas</strong>. No hay respuestas correctas —
+              Responde <strong>2 preguntas</strong>. No hay respuestas correctas —
               solo honestas, raras o absurdas.
             </p>
             <p className="intro-body">
@@ -175,12 +189,12 @@ export default function AudienceView() {
             />
             <div className="char-count">{answers[step].length}/120</div>
             {isLast ? (
-              <button className="send-btn" onClick={handleSubmit} disabled={!canAdvance}>
-                Enviar todo <i className="ti ti-send" />
+              <button className="send-btn" onClick={handleSubmit} disabled={!canAdvance || sending}>
+                {sending ? 'Enviando...' : <><i className="ti ti-check" /> Enviar y terminar</>}
               </button>
             ) : (
-              <button className="send-btn" onClick={handleNext} disabled={!canAdvance}>
-                Siguiente <i className="ti ti-arrow-right" />
+              <button className="send-btn" onClick={handleNext} disabled={!canAdvance || sending}>
+                {sending ? 'Enviando...' : <><i className="ti ti-send" /> Enviar respuesta</>}
               </button>
             )}
           </>

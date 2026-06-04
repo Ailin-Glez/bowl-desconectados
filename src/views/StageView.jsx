@@ -16,13 +16,27 @@ const DEFAULT_QUESTIONS = [
 
 const DEFAULTS = { questions: DEFAULT_QUESTIONS, nombre: 'Des-conectados' }
 
-const SAMPLE_RESPUESTAS = [
-  'Tres empanadas frías y mucho arrepentimiento',
-  'Mi vecino y una paloma muy sospechosa',
-  'El precio del aguacate en el supermercado',
-  'Porque el wifi nunca funciona cuando más lo necesito',
-  'Una playlist de Ed Sheeran y mucho llanto',
-  'Básicamente nada, y eso es lo peor',
+const SAMPLE_PAIRS = [
+  {
+    molesta: 'Que mastiquen con la boca abierta y además lo disfruten',
+    morir: 'Que alguien baje el volumen, por favor',
+  },
+  {
+    molesta: 'Que lleguen tarde y encima vengan de buen humor',
+    morir: 'Debí haber dormido más',
+  },
+  {
+    molesta: 'Que digan "ya casi llego" desde la cama',
+    morir: 'Que quede registrado que yo tenía razón',
+  },
+  {
+    molesta: 'Que me pregunten "¿estás bien?" con esa cara',
+    morir: 'Ojalá hubiera comido más empanadas',
+  },
+  {
+    molesta: 'Que pongan el altavoz sin avisar',
+    morir: 'El wifi nunca funcionó cuando más lo necesité',
+  },
 ]
 
 function rand(arr) {
@@ -97,11 +111,10 @@ export default function StageView() {
   const addSample = async () => {
     if (!isConfigured) return
     const questions = config.questions.length ? config.questions : DEFAULT_QUESTIONS
-    const q1 = questions[0]
-    const q2 = questions.length > 1 ? questions[1] : questions[0]
+    const pair = rand(SAMPLE_PAIRS)
     await Promise.all([
-      addDoc(collection(db, 'entries'), { text: rand(SAMPLE_RESPUESTAS), question: q1, createdAt: serverTimestamp() }),
-      addDoc(collection(db, 'entries'), { text: rand(SAMPLE_RESPUESTAS), question: q2, createdAt: serverTimestamp() }),
+      addDoc(collection(db, 'entries'), { text: pair.molesta, question: questions[0], createdAt: serverTimestamp() }),
+      addDoc(collection(db, 'entries'), { text: pair.morir,   question: questions[1] ?? questions[0], createdAt: serverTimestamp() }),
     ])
   }
 
