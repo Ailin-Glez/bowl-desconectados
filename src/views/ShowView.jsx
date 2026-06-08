@@ -70,6 +70,14 @@ export default function ShowView() {
   const current = entries[index]
   const total = entries.length
 
+  const answerFontSize = (text = '') => {
+    const len = text.length
+    if (len < 40)  return 'clamp(56px, 9vw, 140px)'
+    if (len < 70)  return 'clamp(44px, 6.5vw, 100px)'
+    if (len < 100) return 'clamp(34px, 5vw, 76px)'
+    return             'clamp(26px, 3.8vw, 58px)'
+  }
+
   if (!started) {
     return (
       <div className="show-page show-intro">
@@ -91,7 +99,7 @@ export default function ShowView() {
         {total === 0 ? (
           <div className="show-waiting">Esperando respuestas...</div>
         ) : current ? (
-          <div key={index} className="show-answer-text">"{current.text}"</div>
+          <div key={index} className="show-answer-text" style={{ fontSize: answerFontSize(current.text) }}>"{current.text}"</div>
         ) : null}
       </div>
 
