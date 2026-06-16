@@ -150,6 +150,28 @@ export default function StageView() {
     setEditingId(null)
   }
 
+  const downloadQR = () => {
+    const svg = document.querySelector('#qr-box svg')
+    if (!svg) return
+    const size = 600
+    const xml = new XMLSerializer().serializeToString(svg)
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, size, size)
+      ctx.drawImage(img, 0, 0, size, size)
+      const a = document.createElement('a')
+      a.download = 'qr-desconectados.png'
+      a.href = canvas.toDataURL('image/png')
+      a.click()
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(new TextDecoder('latin1').decode(new TextEncoder().encode(xml)))
+  }
+
   const copyUrl = () => {
     navigator.clipboard.writeText(audienceUrl)
     setCopied(true)
@@ -192,7 +214,7 @@ export default function StageView() {
           <div className="stage-wrap">
             {/* QR */}
             <div className="qr-section">
-              <div className="qr-box">
+              <div className="qr-box" id="qr-box">
                 <QRCodeSVG value={audienceUrl} size={156} bgColor="#ffffff" fgColor="#111111" />
               </div>
               <div className="qr-url">{audienceUrl}</div>
@@ -200,6 +222,9 @@ export default function StageView() {
                 <button className="ctrl-btn" onClick={copyUrl}>
                   <i className={`ti ti-${copied ? 'check' : 'copy'}`} />
                   {copied ? 'Copiado' : 'Copiar link'}
+                </button>
+                <button className="ctrl-btn" onClick={downloadQR}>
+                  <i className="ti ti-download" /> Descargar QR
                 </button>
               </div>
               <div className="qr-hint">

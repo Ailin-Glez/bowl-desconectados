@@ -3,11 +3,21 @@ import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 
+function buildSlides(entries) {
+  // [logo, answer, logo, answer, logo, answer, ...]
+  const slides = []
+  for (const entry of entries) {
+    slides.push({ type: 'logo' })
+    slides.push({ type: 'answer', entry })
+  }
+  return slides
+}
+
 export default function ShowView() {
   const [entries, setEntries] = useState([])
   const [index, setIndex] = useState(0)
   const [started, setStarted] = useState(false)
-  const totalRef = useRef(0)
+  const slidesRef = useRef([])
 
   const syncTimeout = useRef(null)
   const pushState = (updates) => {
@@ -19,7 +29,7 @@ export default function ShowView() {
   }
 
   const navigate = (i) => {
-    const clamped = Math.max(0, Math.min(i, totalRef.current - 1))
+    const clamped = Math.max(0, Math.min(i, slidesRef.current.length - 1))
     setIndex(clamped)
     pushState({ showIndex: clamped })
   }
@@ -33,7 +43,7 @@ export default function ShowView() {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
       setEntries(items)
-      totalRef.current = items.length
+      slidesRef.current = buildSlides(items)
     })
   }, [])
 
@@ -56,7 +66,7 @@ export default function ShowView() {
       }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
         e.preventDefault()
-        setIndex(i => { const next = Math.min(i + 1, totalRef.current - 1); pushState({ showIndex: next }); return next })
+        setIndex(i => { const next = Math.min(i + 1, slidesRef.current.length - 1); pushState({ showIndex: next }); return next })
       }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault()
@@ -67,49 +77,64 @@ export default function ShowView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [started])
 
-  const current = entries[index]
-  const total = entries.length
+  const slides = buildSlides(entries)
+  const total = slides.length
+  const slide = slides[index]
 
   const answerFontSize = (text = '') => {
     const len = text.length
     if (len < 40)  return 'clamp(56px, 9vw, 140px)'
     if (len < 70)  return 'clamp(44px, 6.5vw, 100px)'
     if (len < 100) return 'clamp(34px, 5vw, 76px)'
-    return             'clamp(26px, 3.8vw, 58px)'
+    return                 'clamp(26px, 3.8vw, 58px)'
   }
 
   if (!started) {
     return (
       <div className="show-page show-intro">
         <img src={logo} alt="Des-conectados" className="show-intro-logo" />
-        <button className="show-start-btn" onClick={startShow}>
-          Empezar
-        </button>
+        <button className="show-start-btn" onClick={startShow}>Empezar</button>
+      </div>
+    )
+  }
+
+  if (entries.length === 0) {
+    return (
+      <div className="show-page show-intro">
+        <img src={logo} alt="Des-conectados" className="show-intro-logo" />
+        <div className="show-waiting">Esperando respuestas...</div>
       </div>
     )
   }
 
   return (
     <div className="show-page">
-      <div className="show-logo">
-        <img src={logo} alt="Des-conectados" />
-      </div>
-
-      <div className="show-answer-section">
-        {total === 0 ? (
-          <div className="show-waiting">Esperando respuestas...</div>
-        ) : current ? (
-          <div key={index} className="show-answer-text" style={{ fontSize: answerFontSize(current.text) }}>"{current.text}"</div>
-        ) : null}
-      </div>
-
-      {total > 0 && (
-        <div className="show-nav">
-          <button className="show-nav-btn" onClick={() => navigate(index - 1)} disabled={index === 0}>←</button>
-          <span className="show-nav-count">{index + 1} / {total}</span>
-          <button className="show-nav-btn" onClick={() => navigate(index + 1)} disabled={index === total - 1}>→</button>
+      {slide?.type === 'logo' ? (
+        <div key={index} className="show-logo-slide">
+          <div className="show-slide-tagline">
+            <span className="show-slide-title">CANCIÓN</span>
+            <span className="show-slide-sub">con el público</span>
+          </div>
+          <img src={logo} alt="Des-conectados" className="show-slide-logo" />
         </div>
+      ) : (
+        <>
+          <div className="show-logo">
+            <img src={logo} alt="Des-conectados" />
+          </div>
+          <div className="show-answer-section">
+            <div key={index} className="show-answer-text" style={{ fontSize: answerFontSize(slide?.entry?.text) }}>
+              "{slide?.entry?.text}"
+            </div>
+          </div>
+        </>
       )}
+
+      <div className="show-nav">
+        <button className="show-nav-btn" onClick={() => navigate(index - 1)} disabled={index === 0}>←</button>
+        <span className="show-nav-count">{index + 1} / {total}</span>
+        <button className="show-nav-btn" onClick={() => navigate(index + 1)} disabled={index === total - 1}>→</button>
+      </div>
     </div>
   )
 }

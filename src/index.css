@@ -447,6 +447,42 @@ textarea:focus { outline: none; border-color: var(--accent); }
   border-color: rgba(255,255,255,0.6);
   color: rgba(255,255,255,0.9);
 }
+.show-logo-slide {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.show-logo-slide { flex-direction: column; gap: 5vh; }
+.show-slide-tagline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+  text-align: center;
+  animation: answerIn .5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.show-slide-title {
+  font-size: clamp(72px, 14vw, 220px);
+  color: #F5C542;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -2px;
+}
+.show-slide-sub {
+  font-size: clamp(40px, 6vw, 96px);
+  color: rgba(255,255,255,0.7);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+.show-slide-logo {
+  height: clamp(80px, 14vh, 180px);
+  width: auto;
+  opacity: 0.95;
+  animation: answerIn .45s cubic-bezier(0.22, 1, 0.36, 1);
+}
 .show-answer-section {
   flex: 1;
   display: flex;
