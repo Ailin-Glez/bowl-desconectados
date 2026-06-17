@@ -15,6 +15,7 @@ function buildSlides(entries) {
 
 export default function ShowView() {
   const [entries, setEntries] = useState([])
+  const [entryOrder, setEntryOrder] = useState([])
   const [index, setIndex] = useState(0)
   const [started, setStarted] = useState(false)
   const slidesRef = useRef([])
@@ -34,7 +35,13 @@ export default function ShowView() {
     pushState({ showIndex: clamped })
   }
 
-  const startShow = () => pushState({ showStarted: true })
+  const startShow = () => pushState({ showStarted: true, showIndex: 0 })
+
+  // Reset show state on every mount
+  useEffect(() => {
+    if (!isConfigured) return
+    setDoc(doc(db, 'config', 'main'), { showStarted: false, showIndex: 0 }, { merge: true })
+  }, [])
 
   useEffect(() => {
     if (!isConfigured) return
@@ -54,6 +61,7 @@ export default function ShowView() {
         const d = snap.data()
         setIndex(d.showIndex ?? 0)
         setStarted(d.showStarted ?? false)
+        setEntryOrder(d.entryOrder ?? [])
       }
     })
   }, [])
@@ -77,7 +85,10 @@ export default function ShowView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [started])
 
-  const slides = buildSlides(entries)
+  const sortedEntries = entryOrder.length > 0
+    ? entryOrder.map(id => entries.find(e => e.id === id)).filter(Boolean)
+    : entries
+  const slides = buildSlides(sortedEntries)
   const total = slides.length
   const slide = slides[index]
 

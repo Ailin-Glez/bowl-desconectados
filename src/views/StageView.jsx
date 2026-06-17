@@ -65,7 +65,7 @@ export default function StageView() {
     return onSnapshot(collection(db, 'entries'), snap => {
       const items = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
+        .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
       setEntries(items)
       setOrder(prev => {
         const existing = new Set(prev)
@@ -131,6 +131,7 @@ export default function StageView() {
       if (next < 0 || next >= prev.length) return prev
       const arr = [...prev]
       ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+      setDoc(doc(db, 'config', 'main'), { entryOrder: arr }, { merge: true })
       return arr
     })
   }

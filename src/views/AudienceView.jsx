@@ -4,15 +4,12 @@ import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 
 const DEFAULT_QUESTIONS = [
-  '¿Qué marca de shampoo usas?',
-  '¿Cuál es la primera frase que dices al despertar?',
-  '¿Qué comiste hoy?',
-  '¿Qué ves cuando miras por la ventana?',
+  '¿Qué dirías antes de morir?',
 ]
 
 const DEFAULTS = { questions: DEFAULT_QUESTIONS, nombre: 'Des-conectados' }
-const TOTAL = 2
-const STEP_COLORS = ['#D85A30', '#1D9E75']
+const TOTAL = 1
+const STEP_COLORS = ['#D85A30']
 
 function loadSession() {
   try {
@@ -33,7 +30,7 @@ export default function AudienceView() {
   const [status, setStatus] = useState('loading') // loading | form | sending | done | error
   const [config, setConfig] = useState(DEFAULTS)
   const [questions, setQuestions] = useState([])   // 3 assigned questions
-  const [answers, setAnswers] = useState(['', ''])
+  const [answers, setAnswers] = useState([''])
   const [sending, setSending] = useState(false)
   const [step, setStep] = useState(0)
 
@@ -61,7 +58,7 @@ export default function AudienceView() {
     const qs = config.questions?.length ? config.questions : DEFAULT_QUESTIONS
     const assigned = qs.slice(0, TOTAL)
     setQuestions(assigned)
-    saveSession({ questions: assigned, answers: ['', ''], step: 0 })
+    saveSession({ questions: assigned, answers: [''], step: 0 })
     setStatus('form')
   }
 
@@ -147,12 +144,8 @@ export default function AudienceView() {
               <h2 className="intro-title">¡Eres parte del show!</h2>
             </div>
             <p className="intro-body">
-              Responde <strong>2 preguntas</strong>. No hay respuestas correctas —
-              solo honestas, raras o absurdas.
-            </p>
-            <p className="intro-body">
-              Tus respuestas serán parte de la canción
-              que se compone <em>esta noche</em>, ¡en vivo!
+              Tu respuesta será parte de la canción
+              que se compone esta noche, ¡EN VIVO!
             </p>
             <p className="intro-body" style={{ color: 'var(--accent)' }}>
               Mientras más auténtica o ridícula la respuesta, MEJOR.
@@ -170,12 +163,7 @@ export default function AudienceView() {
             </div>
             <div className="question-box" style={{ background: STEP_COLORS[step], borderLeft: 'none' }}>
               <div className="question-label" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                Pregunta {step + 1} de {TOTAL}
-                <span className="step-dots">
-                  {Array.from({ length: TOTAL }, (_, i) => (
-                    <span key={i} className="step-dot" style={{ background: i <= step ? STEP_COLORS[i] : undefined }} />
-                  ))}
-                </span>
+                Tu respuesta
               </div>
               <div className="question-text" style={{ color: '#fff' }}>{questions[step]}</div>
             </div>
@@ -206,9 +194,9 @@ export default function AudienceView() {
             <div className="sent-icon"><i className="ti ti-music" /></div>
             <div className="sent-title">¡Ya estás en el bowl!</div>
             <div className="sent-sub">
-              Tus respuestas llegaron. Quedate atent@ — pueden convertirse en canción esta noche.
+              Tu respuesta llegó. Quedate atent@ — puede convertirse en canción esta noche.
             </div>
-            <button className="again-btn" onClick={() => { clearSession(); setAnswers(['', '']); setStep(0); setStatus('intro') }}>
+            <button className="again-btn" onClick={() => { clearSession(); setAnswers(['']); setStep(0); setStatus('intro') }}>
               Responder de nuevo
             </button>
           </div>
