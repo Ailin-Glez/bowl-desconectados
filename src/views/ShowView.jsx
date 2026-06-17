@@ -4,11 +4,10 @@ import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 
 function buildSlides(entries) {
-  // [logo, answer, logo, answer, logo, answer, ...]
-  const slides = []
+  const slides = [{ type: 'logo' }]
   for (const entry of entries) {
-    slides.push({ type: 'logo' })
     slides.push({ type: 'answer', entry })
+    slides.push({ type: 'logo' })
   }
   return slides
 }
@@ -16,8 +15,8 @@ function buildSlides(entries) {
 export default function ShowView() {
   const [entries, setEntries] = useState([])
   const [entryOrder, setEntryOrder] = useState([])
+  const entryOrderLocked = useRef(false)
   const [index, setIndex] = useState(0)
-  const [started, setStarted] = useState(false)
   const slidesRef = useRef([])
 
   const syncTimeout = useRef(null)
@@ -35,12 +34,10 @@ export default function ShowView() {
     pushState({ showIndex: clamped })
   }
 
-  const startShow = () => pushState({ showStarted: true, showIndex: 0 })
-
-  // Reset show state on every mount
+  // Reset to slide 0 on every mount
   useEffect(() => {
     if (!isConfigured) return
-    setDoc(doc(db, 'config', 'main'), { showStarted: false, showIndex: 0 }, { merge: true })
+    setDoc(doc(db, 'config', 'main'), { showIndex: 0 }, { merge: true })
   }, [])
 
   useEffect(() => {
@@ -60,18 +57,16 @@ export default function ShowView() {
       if (snap.exists()) {
         const d = snap.data()
         setIndex(d.showIndex ?? 0)
-        setStarted(d.showStarted ?? false)
-        setEntryOrder(d.entryOrder ?? [])
+        if (!entryOrderLocked.current && d.entryOrder?.length) {
+          setEntryOrder(d.entryOrder)
+          entryOrderLocked.current = true
+        }
       }
     })
   }, [])
 
   useEffect(() => {
     const onKey = (e) => {
-      if (!started) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startShow() }
-        return
-      }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
         e.preventDefault()
         setIndex(i => { const next = Math.min(i + 1, slidesRef.current.length - 1); pushState({ showIndex: next }); return next })
@@ -83,11 +78,12 @@ export default function ShowView() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [started])
+  }, [])
 
   const sortedEntries = entryOrder.length > 0
     ? entryOrder.map(id => entries.find(e => e.id === id)).filter(Boolean)
     : entries
+
   const slides = buildSlides(sortedEntries)
   const total = slides.length
   const slide = slides[index]
@@ -98,24 +94,6 @@ export default function ShowView() {
     if (len < 70)  return 'clamp(44px, 6.5vw, 100px)'
     if (len < 100) return 'clamp(34px, 5vw, 76px)'
     return                 'clamp(26px, 3.8vw, 58px)'
-  }
-
-  if (!started) {
-    return (
-      <div className="show-page show-intro">
-        <img src={logo} alt="Des-conectados" className="show-intro-logo" />
-        <button className="show-start-btn" onClick={startShow}>Empezar</button>
-      </div>
-    )
-  }
-
-  if (entries.length === 0) {
-    return (
-      <div className="show-page show-intro">
-        <img src={logo} alt="Des-conectados" className="show-intro-logo" />
-        <div className="show-waiting">Esperando respuestas...</div>
-      </div>
-    )
   }
 
   return (
