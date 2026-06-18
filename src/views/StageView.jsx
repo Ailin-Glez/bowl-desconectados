@@ -43,10 +43,6 @@ export default function StageView() {
   // Manual order (array of IDs)
   const [order, setOrder] = useState([])
 
-  // Revealed question
-  const [revealedQuestion, setRevealedQuestion] = useState('')
-  const [revealedInput, setRevealedInput] = useState('')
-  const [revealedSaved, setRevealedSaved] = useState(false)
 
   // Inline edit
   const [editingId, setEditingId] = useState(null)
@@ -87,18 +83,9 @@ export default function StageView() {
         setConfig({ questions, nombre })
         setQuestionsText(questions.join('\n'))
         setNombreForm(nombre)
-        setRevealedQuestion(d.revealedQuestion || '')
-        setRevealedInput(d.revealedQuestion || '')
       }
     })
   }, [])
-
-  const saveRevealedQuestion = async () => {
-    if (!isConfigured) return
-    await setDoc(doc(db, 'config', 'main'), { revealedQuestion: revealedInput }, { merge: true })
-    setRevealedSaved(true)
-    setTimeout(() => setRevealedSaved(false), 2000)
-  }
 
   const addSample = async () => {
     if (!isConfigured) return
@@ -213,11 +200,8 @@ export default function StageView() {
 
         {activeTab === 'stage' && (
           <div className="stage-wrap">
-            {/* QR */}
+            {/* Link */}
             <div className="qr-section">
-              <div className="qr-box" id="qr-box">
-                <QRCodeSVG value={audienceUrl} size={156} bgColor="#ffffff" fgColor="#111111" />
-              </div>
               <div className="qr-url">{audienceUrl}</div>
               <div className="qr-actions">
                 <button className="ctrl-btn" onClick={copyUrl}>
@@ -228,38 +212,11 @@ export default function StageView() {
                   <i className="ti ti-download" /> Descargar QR
                 </button>
               </div>
-              <div className="qr-hint">
-                El público responde preguntas — sus respuestas aparecen abajo en tiempo real
-              </div>
             </div>
 
-            {/* Pregunta revelada */}
-            <div className="revealed-section">
-              <div className="revealed-header">
-                <span className="revealed-label-text">
-                  <i className="ti ti-eye-off" /> Pregunta revelada — aparece en la proyección
-                </span>
-              </div>
-              {revealedQuestion && (
-                <div className="revealed-display">
-                  <div className="revealed-text">{revealedQuestion}</div>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <input
-                  type="text"
-                  className="config-input"
-                  style={{ flex: 1 }}
-                  value={revealedInput}
-                  onChange={e => setRevealedInput(e.target.value)}
-                  placeholder="¿Qué le dirías a la persona que más amás?"
-                  onKeyDown={e => e.key === 'Enter' && saveRevealedQuestion()}
-                />
-                <button className="ctrl-btn primary" onClick={saveRevealedQuestion}>
-                  <i className="ti ti-check" /> Guardar
-                </button>
-              </div>
-              {revealedSaved && <div style={{ fontSize: 12, color: 'var(--accent2)', marginTop: 6 }}>¡Guardada!</div>}
+            {/* QR oculto para descarga */}
+            <div id="qr-box" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}>
+              <QRCodeSVG value={audienceUrl} size={156} bgColor="#ffffff" fgColor="#111111" />
             </div>
 
             {/* Controls */}
