@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   collection, onSnapshot, doc, addDoc,
   deleteDoc, setDoc, updateDoc, serverTimestamp,
@@ -42,7 +42,9 @@ export default function StageView() {
 
   // Manual order (array of IDs)
   const [order, setOrder] = useState([])
-
+  const entriesRef = useRef([])
+  const orderLoaded = useRef(false)
+  const [orderSaved, setOrderSaved] = useState(false)
 
   // Inline edit
   const [editingId, setEditingId] = useState(null)
@@ -62,13 +64,14 @@ export default function StageView() {
       const items = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
+      entriesRef.current = items
       setEntries(items)
       setOrder(prev => {
         const existing = new Set(prev)
         const incoming = new Set(items.map(e => e.id))
         const kept = prev.filter(id => incoming.has(id))
         const added = items.map(e => e.id).filter(id => !existing.has(id))
-        return [...kept, ...added]
+        return [...added, ...kept]
       })
     })
   }, [])
@@ -83,6 +86,14 @@ export default function StageView() {
         setConfig({ questions, nombre })
         setQuestionsText(questions.join('\n'))
         setNombreForm(nombre)
+        if (!orderLoaded.current && d.entryOrder?.length) {
+          orderLoaded.current = true
+          const all = entriesRef.current
+          const inSaved = new Set(d.entryOrder)
+          const kept = d.entryOrder.filter(id => all.find(e => e.id === id))
+          const added = all.filter(e => !inSaved.has(e.id)).map(e => e.id)
+          setOrder([...added, ...kept])
+        }
       }
     })
   }, [])
@@ -118,9 +129,15 @@ export default function StageView() {
       if (next < 0 || next >= prev.length) return prev
       const arr = [...prev]
       ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
-      setDoc(doc(db, 'config', 'main'), { entryOrder: arr }, { merge: true })
       return arr
     })
+  }
+
+  const saveOrder = async () => {
+    if (!isConfigured) return
+    await setDoc(doc(db, 'config', 'main'), { entryOrder: order }, { merge: true })
+    setOrderSaved(true)
+    setTimeout(() => setOrderSaved(false), 2000)
   }
 
   const deleteEntry = async (id) => {
@@ -230,6 +247,10 @@ export default function StageView() {
               </button>
               <button className="ctrl-btn" onClick={clearAll} disabled={!entries.length}>
                 <i className="ti ti-trash" /> Limpiar todo
+              </button>
+              <button className="ctrl-btn" onClick={saveOrder} disabled={!order.length} style={{ marginLeft: 'auto' }}>
+                <i className={`ti ti-${orderSaved ? 'check' : 'device-floppy'}`} />
+                {orderSaved ? 'Guardado' : 'Guardar orden'}
               </button>
             </div>
 
