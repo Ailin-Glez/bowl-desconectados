@@ -45,6 +45,7 @@ export default function StageView() {
   const entriesRef = useRef([])
   const orderLoaded = useRef(false)
   const [orderSaved, setOrderSaved] = useState(false)
+  const [projectionFrozen, setProjectionFrozen] = useState(false)
 
   // Inline edit
   const [editingId, setEditingId] = useState(null)
@@ -86,6 +87,7 @@ export default function StageView() {
         setConfig({ questions, nombre })
         setQuestionsText(questions.join('\n'))
         setNombreForm(nombre)
+        setProjectionFrozen(d.projectionFrozen ?? false)
         if (!orderLoaded.current && d.entryOrder?.length) {
           orderLoaded.current = true
           const all = entriesRef.current
@@ -138,6 +140,15 @@ export default function StageView() {
     await setDoc(doc(db, 'config', 'main'), { entryOrder: order }, { merge: true })
     setOrderSaved(true)
     setTimeout(() => setOrderSaved(false), 2000)
+  }
+
+  const toggleFreeze = async () => {
+    if (!isConfigured) return
+    if (!projectionFrozen) {
+      await setDoc(doc(db, 'config', 'main'), { entryOrder: order, projectionFrozen: true }, { merge: true })
+    } else {
+      await setDoc(doc(db, 'config', 'main'), { projectionFrozen: false }, { merge: true })
+    }
   }
 
   const deleteEntry = async (id) => {
@@ -213,6 +224,15 @@ export default function StageView() {
           <a href="/show" target="_blank" className="tab" style={{ textDecoration: 'none' }}>
             <i className="ti ti-presentation" /> Proyección
           </a>
+          <button
+            className={`tab ${projectionFrozen ? 'active' : ''}`}
+            onClick={toggleFreeze}
+            style={{ marginLeft: 'auto', color: projectionFrozen ? '#e55' : undefined }}
+            title={projectionFrozen ? 'La proyección está congelada. Click para reanudar.' : 'Congelar proyección con el orden actual'}
+          >
+            <i className={`ti ti-${projectionFrozen ? 'lock' : 'lock-open'}`} />
+            {projectionFrozen ? 'Descongelar' : 'Congelar'}
+          </button>
         </div>
 
         {activeTab === 'stage' && (

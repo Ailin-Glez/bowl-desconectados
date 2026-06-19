@@ -15,7 +15,7 @@ function buildSlides(entries) {
 export default function ShowView() {
   const [entries, setEntries] = useState([])
   const [entryOrder, setEntryOrder] = useState([])
-  const entryOrderLocked = useRef(false)
+  const frozenRef = useRef(false)
   const [index, setIndex] = useState(0)
   const slidesRef = useRef([])
 
@@ -43,6 +43,7 @@ export default function ShowView() {
   useEffect(() => {
     if (!isConfigured) return
     return onSnapshot(collection(db, 'entries'), snap => {
+      if (frozenRef.current) return
       const items = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
@@ -57,9 +58,13 @@ export default function ShowView() {
       if (snap.exists()) {
         const d = snap.data()
         setIndex(d.showIndex ?? 0)
-        if (!entryOrderLocked.current && d.entryOrder?.length) {
-          setEntryOrder(d.entryOrder)
-          entryOrderLocked.current = true
+        const isFrozen = d.projectionFrozen ?? false
+        if (!isFrozen) {
+          frozenRef.current = false
+          if (d.entryOrder?.length) setEntryOrder(d.entryOrder)
+        } else if (!frozenRef.current) {
+          frozenRef.current = true
+          if (d.entryOrder?.length) setEntryOrder(d.entryOrder)
         }
       }
     })
