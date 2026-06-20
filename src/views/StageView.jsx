@@ -45,7 +45,7 @@ export default function StageView() {
   const entriesRef = useRef([])
   const orderLoaded = useRef(false)
   const [orderSaved, setOrderSaved] = useState(false)
-  const [projectionFrozen, setProjectionFrozen] = useState(false)
+  const [submissionsClosed, setSubmissionsClosed] = useState(false)
 
   // Inline edit
   const [editingId, setEditingId] = useState(null)
@@ -87,7 +87,7 @@ export default function StageView() {
         setConfig({ questions, nombre })
         setQuestionsText(questions.join('\n'))
         setNombreForm(nombre)
-        setProjectionFrozen(d.projectionFrozen ?? false)
+        setSubmissionsClosed(d.submissionsClosed ?? false)
         if (!orderLoaded.current && d.entryOrder?.length) {
           orderLoaded.current = true
           const all = entriesRef.current
@@ -142,13 +142,9 @@ export default function StageView() {
     setTimeout(() => setOrderSaved(false), 2000)
   }
 
-  const toggleFreeze = async () => {
+  const toggleSubmissions = async () => {
     if (!isConfigured) return
-    if (!projectionFrozen) {
-      await setDoc(doc(db, 'config', 'main'), { entryOrder: order, projectionFrozen: true }, { merge: true })
-    } else {
-      await setDoc(doc(db, 'config', 'main'), { projectionFrozen: false }, { merge: true })
-    }
+    await setDoc(doc(db, 'config', 'main'), { submissionsClosed: !submissionsClosed }, { merge: true })
   }
 
   const deleteEntry = async (id) => {
@@ -214,43 +210,41 @@ export default function StageView() {
   return (
     <div className="stage-page">
       <div className="container">
+        {/* Action bar */}
+        <div className="action-bar">
+          <a href="/show" target="_blank" className="action-btn">
+            <i className="ti ti-presentation" />
+            Proyección
+          </a>
+          <button
+            className={`action-btn ${submissionsClosed ? 'danger' : ''}`}
+            onClick={toggleSubmissions}
+          >
+            <i className={`ti ti-${submissionsClosed ? 'player-play' : 'player-stop'}`} />
+            {submissionsClosed ? 'Abrir bowl' : 'Cerrar bowl'}
+          </button>
+          <button
+            className={`action-btn ${orderSaved ? 'highlight' : ''}`}
+            onClick={saveOrder}
+            disabled={!order.length}
+          >
+            <i className={`ti ti-${orderSaved ? 'check' : 'send'}`} />
+            {orderSaved ? '¡Proyectando!' : 'Actualizar proyección'}
+          </button>
+        </div>
+
+        {/* Nav tabs */}
         <div className="tabs">
           <button className={`tab ${activeTab === 'stage' ? 'active' : ''}`} onClick={() => setActiveTab('stage')}>
-            <i className="ti ti-device-tv" /> Vista escenario
+            <i className="ti ti-device-tv" /> Respuestas
           </button>
           <button className={`tab ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
             <i className="ti ti-settings" /> Configurar
-          </button>
-          <a href="/show" target="_blank" className="tab" style={{ textDecoration: 'none' }}>
-            <i className="ti ti-presentation" /> Proyección
-          </a>
-          <button
-            className={`tab ${projectionFrozen ? 'active' : ''}`}
-            onClick={toggleFreeze}
-            style={{ marginLeft: 'auto', color: projectionFrozen ? '#e55' : undefined }}
-            title={projectionFrozen ? 'La proyección está congelada. Click para reanudar.' : 'Congelar proyección con el orden actual'}
-          >
-            <i className={`ti ti-${projectionFrozen ? 'lock' : 'lock-open'}`} />
-            {projectionFrozen ? 'Descongelar' : 'Congelar'}
           </button>
         </div>
 
         {activeTab === 'stage' && (
           <div className="stage-wrap">
-            {/* Link */}
-            <div className="qr-section">
-              <div className="qr-url">{audienceUrl}</div>
-              <div className="qr-actions">
-                <button className="ctrl-btn" onClick={copyUrl}>
-                  <i className={`ti ti-${copied ? 'check' : 'copy'}`} />
-                  {copied ? 'Copiado' : 'Copiar link'}
-                </button>
-                <button className="ctrl-btn" onClick={downloadQR}>
-                  <i className="ti ti-download" /> Descargar QR
-                </button>
-              </div>
-            </div>
-
             {/* QR oculto para descarga */}
             <div id="qr-box" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}>
               <QRCodeSVG value={audienceUrl} size={156} bgColor="#ffffff" fgColor="#111111" />
@@ -267,10 +261,6 @@ export default function StageView() {
               </button>
               <button className="ctrl-btn" onClick={clearAll} disabled={!entries.length}>
                 <i className="ti ti-trash" /> Limpiar todo
-              </button>
-              <button className="ctrl-btn" onClick={saveOrder} disabled={!order.length} style={{ marginLeft: 'auto' }}>
-                <i className={`ti ti-${orderSaved ? 'check' : 'device-floppy'}`} />
-                {orderSaved ? 'Guardado' : 'Guardar orden'}
               </button>
             </div>
 
@@ -347,13 +337,9 @@ export default function StageView() {
         {activeTab === 'config' && (
           <div className="stage-wrap">
             <div className="stage-header">
-              <div className="stage-title"><i className="ti ti-settings" /> Configuración del bowl</div>
+              <div className="stage-title"><i className="ti ti-settings" /> Pregunta del bowl</div>
             </div>
             <div className="config-section">
-              <div className="config-title"><i className="ti ti-list" /> Preguntas banales</div>
-              <div className="config-label">
-                Una por línea — el público las recibe en rotación sin saber la pregunta real
-              </div>
               <textarea
                 style={{ minHeight: 180, marginBottom: 0 }}
                 value={questionsText}
@@ -376,6 +362,18 @@ export default function StageView() {
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button className="save-btn" onClick={saveConfig}>Guardar cambios</button>
                 {savedMsg && <span className="saved-msg">¡Guardado!</span>}
+              </div>
+
+              <div className="config-title" style={{ marginTop: 20 }}><i className="ti ti-link" /> Link del público</div>
+              <div className="config-label">{audienceUrl}</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="ctrl-btn" onClick={copyUrl}>
+                  <i className={`ti ti-${copied ? 'check' : 'copy'}`} />
+                  {copied ? 'Copiado' : 'Copiar link'}
+                </button>
+                <button className="ctrl-btn" onClick={downloadQR}>
+                  <i className="ti ti-download" /> Descargar QR
+                </button>
               </div>
             </div>
           </div>

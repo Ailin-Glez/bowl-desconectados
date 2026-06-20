@@ -137,7 +137,19 @@ export default function AudienceView() {
 
         {status === 'loading' && <div className="loading-msg">Un momento...</div>}
 
-        {status === 'intro' && (
+        {config.submissionsClosed && status !== 'done' && (
+          <div className="sent-msg">
+            <div className="sent-icon" style={{ color: 'var(--accent)' }}>
+              <i className="ti ti-lock" />
+            </div>
+            <div className="sent-title">Ya cerramos el bowl</div>
+            <div className="sent-sub">
+              Esta vez no llegaste a tiempo, pero gracias por estar aquí. ¡Disfruta el show!
+            </div>
+          </div>
+        )}
+
+        {!config.submissionsClosed && status === 'intro' && (
           <div className="intro-screen">
             <div className="intro-icon">
               <i className="ti ti-microphone-2" />
@@ -156,7 +168,7 @@ export default function AudienceView() {
           </div>
         )}
 
-        {status === 'form' && (
+        {!config.submissionsClosed && status === 'form' && (
           <>
             <div className="audience-hint">
               Mientras más ridícula la respuesta, mejor. Nadie te va a juzgar (mucho).
@@ -169,12 +181,12 @@ export default function AudienceView() {
             </div>
             <textarea
               placeholder="Tu respuesta aquí..."
-              maxLength={120}
+              maxLength={60}
               value={answers[step]}
               onChange={e => updateAnswer(e.target.value)}
               autoFocus
             />
-            <div className="char-count">{answers[step].length}/120</div>
+            <div className="char-count">{answers[step].length}/60</div>
             {isLast ? (
               <button className="send-btn" style={{ background: STEP_COLORS[step] }} onClick={handleSubmit} disabled={!canAdvance || sending}>
                 {sending ? 'Enviando...' : <><i className="ti ti-check" /> Enviar y terminar</>}
@@ -187,7 +199,7 @@ export default function AudienceView() {
           </>
         )}
 
-        {status === 'sending' && <div className="loading-msg">Enviando...</div>}
+        {!config.submissionsClosed && status === 'sending' && <div className="loading-msg">Enviando...</div>}
 
         {status === 'done' && (
           <div className="sent-msg">
