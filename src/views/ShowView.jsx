@@ -2,9 +2,19 @@ import { useState, useEffect, useRef } from 'react'
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
+import img1 from '../assets/1-Desconectados QR.png'
+import img2 from '../assets/2-Fondo.png'
+import img3 from '../assets/3-Manu.png'
+import img4 from '../assets/4-Tarek.png'
+import img5 from '../assets/5-Pato.png'
+import img6 from '../assets/6-Ailin.png'
+
+// Intro del show: 1 → 6, luego vuelve a la 2 antes de la canción
+const INTRO_IMAGES = [img1, img2, img3, img4, img5, img6, img2]
 
 function buildSlides(entries) {
-  const slides = [{ type: 'logo' }]
+  const slides = INTRO_IMAGES.map(src => ({ type: 'image', src }))
+  slides.push({ type: 'logo' })
   for (const entry of entries) {
     slides.push({ type: 'answer', entry })
     slides.push({ type: 'logo' })
@@ -94,7 +104,9 @@ export default function ShowView() {
 
   return (
     <div className="show-page">
-      {slide?.type === 'logo' ? (
+      {slide?.type === 'image' ? (
+        <img key={index} src={slide.src} alt="" className="show-image-slide" />
+      ) : slide?.type === 'logo' ? (
         <div key={index} className="show-logo-slide">
           <div className="show-slide-tagline">
             <span className="show-slide-title">CANCIÓN</span>
