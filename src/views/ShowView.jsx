@@ -2,18 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
-import img1 from '../assets/1-Desconectados QR.png'
-import img2 from '../assets/2-Fondo.png'
-import img3 from '../assets/3-Manu.png'
-import img4 from '../assets/4-Tarek.png'
-import img5 from '../assets/5-Pato.png'
-import img6 from '../assets/6-Ailin.png'
+import { BUNDLED_INTRO } from '../slideImages'
 
-// Intro del show: 1 → 6, luego vuelve a la 2 antes de la canción
-const INTRO_IMAGES = [img1, img2, img3, img4, img5, img6, img2]
-
-function buildSlides(entries) {
-  const slides = INTRO_IMAGES.map(src => ({ type: 'image', src }))
+function buildSlides(entries, introImages) {
+  const slides = introImages.map(src => ({ type: 'image', src }))
   slides.push({ type: 'logo' })
   for (const entry of entries) {
     slides.push({ type: 'answer', entry })
@@ -26,6 +18,8 @@ export default function ShowView() {
   const [entries, setEntries] = useState([])
   const [entryOrder, setEntryOrder] = useState([])
   const [index, setIndex] = useState(0)
+  const [introOrder, setIntroOrder] = useState(null) // null = sin configurar
+  const [imageDocs, setImageDocs] = useState({})
   const slidesRef = useRef([])
 
   const syncTimeout = useRef(null)
@@ -56,7 +50,15 @@ export default function ShowView() {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
       setEntries(items)
-      slidesRef.current = buildSlides(items)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isConfigured) return
+    return onSnapshot(collection(db, 'slideImages'), snap => {
+      const map = {}
+      snap.docs.forEach(d => { map[d.id] = d.data().data })
+      setImageDocs(map)
     })
   }, [])
 
@@ -67,6 +69,7 @@ export default function ShowView() {
         const d = snap.data()
         setIndex(d.showIndex ?? 0)
         if (d.entryOrder?.length) setEntryOrder(d.entryOrder)
+        setIntroOrder(Array.isArray(d.introSlides) ? d.introSlides : null)
       }
     })
   }, [])
@@ -90,7 +93,12 @@ export default function ShowView() {
     ? entryOrder.map(id => entries.find(e => e.id === id)).filter(Boolean)
     : entries
 
-  const slides = buildSlides(sortedEntries)
+  const introImages = introOrder === null
+    ? BUNDLED_INTRO
+    : introOrder.map(id => imageDocs[id]).filter(Boolean)
+
+  const slides = buildSlides(sortedEntries, introImages)
+  slidesRef.current = slides
   const total = slides.length
   const slide = slides[index]
 

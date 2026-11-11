@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { QRCodeSVG } from 'qrcode.react'
 import { db, isConfigured } from '../firebase'
+import { BUNDLED_IMAGES, DEFAULT_INTRO_KEYS, compressImage } from '../slideImages'
 
 const DEFAULT_QUESTIONS = [
   '¿Cuál es tu refrán favorito?',
@@ -57,7 +58,24 @@ export default function StageView() {
   const [savedMsg, setSavedMsg] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Imágenes de la proyección (intro antes de la canción)
+  const [slideImages, setSlideImages] = useState([])
+  const [introOrder, setIntroOrder] = useState(null) // null = usa las incluidas en la app
+  const [imgBusy, setImgBusy] = useState('')
+  const fileInputRef = useRef(null)
+
   const audienceUrl = `${window.location.origin}/`
+
+  useEffect(() => {
+    if (!isConfigured) return
+    return onSnapshot(collection(db, 'slideImages'), snap => {
+      setSlideImages(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
+      )
+    })
+  }, [])
 
   useEffect(() => {
     if (!isConfigured) return
@@ -88,6 +106,7 @@ export default function StageView() {
         setQuestionsText(questions.join('\n'))
         setNombreForm(nombre)
         setSubmissionsClosed(d.submissionsClosed ?? false)
+        setIntroOrder(Array.isArray(d.introSlides) ? d.introSlides : null)
         if (!orderLoaded.current && d.entryOrder?.length) {
           orderLoaded.current = true
           const all = entriesRef.current
@@ -145,6 +164,71 @@ export default function StageView() {
   const toggleSubmissions = async () => {
     if (!isConfigured) return
     await setDoc(doc(db, 'config', 'main'), { submissionsClosed: !submissionsClosed }, { merge: true })
+  }
+
+  // ── Imágenes de la proyección ──
+  const saveIntro = (arr) => {
+    setIntroOrder(arr)
+    return setDoc(doc(db, 'config', 'main'), { introSlides: arr }, { merge: true })
+  }
+
+  const uploadImage = async (name, source) => {
+    const data = await compressImage(source)
+    const ref = await addDoc(collection(db, 'slideImages'), { name, data, createdAt: serverTimestamp() })
+    return ref.id
+  }
+
+  // Sube las imágenes incluidas en la app con el orden por defecto (1→6, 2)
+  const importBundled = async () => {
+    setImgBusy('Importando imágenes…')
+    try {
+      const ids = {}
+      for (const img of BUNDLED_IMAGES) {
+        ids[img.key] = await uploadImage(img.name, img.src)
+      }
+      const order = DEFAULT_INTRO_KEYS.map(k => ids[k])
+      await saveIntro(order)
+      return order
+    } finally {
+      setImgBusy('')
+    }
+  }
+
+  const onFilesSelected = async (e) => {
+    const files = [...(e.target.files ?? [])]
+    e.target.value = ''
+    if (!files.length) return
+    try {
+      let base = introOrder ?? await importBundled()
+      for (const [i, file] of files.entries()) {
+        setImgBusy(`Subiendo ${i + 1} de ${files.length}…`)
+        const id = await uploadImage(file.name.replace(/\.[^.]+$/, ''), file)
+        base = [...base, id]
+      }
+      await saveIntro(base)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setImgBusy('')
+    }
+  }
+
+  const moveIntro = (idx, dir) => {
+    const next = idx + dir
+    if (next < 0 || next >= introOrder.length) return
+    const arr = [...introOrder]
+    ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+    saveIntro(arr)
+  }
+
+  const removeFromIntro = (idx) => saveIntro(introOrder.filter((_, i) => i !== idx))
+
+  const addToIntro = (id) => saveIntro([...(introOrder ?? []), id])
+
+  const deleteImage = async (img) => {
+    if (!confirm(`¿Borrar "${img.name}" definitivamente?`)) return
+    await saveIntro((introOrder ?? []).filter(id => id !== img.id))
+    await deleteDoc(doc(db, 'slideImages', img.id))
   }
 
   const deleteEntry = async (id) => {
@@ -240,6 +324,9 @@ export default function StageView() {
           </button>
           <button className={`tab ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
             <i className="ti ti-settings" /> Configurar
+          </button>
+          <button className={`tab ${activeTab === 'images' ? 'active' : ''}`} onClick={() => setActiveTab('images')}>
+            <i className="ti ti-photo" /> Imágenes
           </button>
         </div>
 
@@ -376,6 +463,94 @@ export default function StageView() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+        {/* Images tab */}
+        {activeTab === 'images' && (
+          <div className="stage-wrap">
+            <div className="stage-header">
+              <div className="stage-title"><i className="ti ti-photo" /> Imágenes de la proyección</div>
+              <div className="stage-count">Se muestran antes de la canción</div>
+            </div>
+
+            <div className="stage-controls">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={onFilesSelected}
+              />
+              <button className="ctrl-btn primary" onClick={() => fileInputRef.current?.click()} disabled={!!imgBusy}>
+                <i className="ti ti-upload" /> Subir imágenes
+              </button>
+              {imgBusy && <span className="stage-count">{imgBusy}</span>}
+            </div>
+
+            {introOrder === null ? (
+              <div className="empty-state" style={{ padding: '0.75rem' }}>
+                Ahora se proyectan las imágenes incluidas en la app (1 a 6 y otra vez la 2).
+                Importalas para poder ordenarlas, quitarlas o sumar nuevas.
+                <div style={{ marginTop: 10 }}>
+                  <button className="ctrl-btn" onClick={() => importBundled().catch(err => alert(err.message))} disabled={!!imgBusy}>
+                    <i className="ti ti-download" /> Importar imágenes actuales
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="config-title"><i className="ti ti-list-numbers" /> Orden en la proyección</div>
+                <div className="queue-list">
+                  {introOrder.length === 0 && (
+                    <div className="empty-state" style={{ padding: '0.75rem' }}>
+                      No hay imágenes en la proyección. La proyección empieza directo con la canción.
+                    </div>
+                  )}
+                  {introOrder.map((id, idx) => {
+                    const img = slideImages.find(i => i.id === id)
+                    if (!img) return null
+                    return (
+                      <div key={`${id}-${idx}`} className="queue-item">
+                        <div className="queue-item-num">{idx + 1}</div>
+                        <img src={img.data} alt="" className="slide-thumb" />
+                        <div style={{ flex: 1 }}>{img.name}</div>
+                        <div className="queue-actions">
+                          <button className="ctrl-btn" style={{ padding: '4px 6px' }} onClick={() => moveIntro(idx, -1)} disabled={idx === 0} title="Subir">
+                            <i className="ti ti-chevron-up" />
+                          </button>
+                          <button className="ctrl-btn" style={{ padding: '4px 6px' }} onClick={() => moveIntro(idx, 1)} disabled={idx === introOrder.length - 1} title="Bajar">
+                            <i className="ti ti-chevron-down" />
+                          </button>
+                          <button className="ctrl-btn" style={{ padding: '4px 6px', color: 'var(--accent)' }} onClick={() => removeFromIntro(idx)} title="Quitar de la proyección">
+                            <i className="ti ti-x" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="config-title" style={{ marginTop: 20 }}><i className="ti ti-library-photo" /> Todas las imágenes</div>
+                <div className="config-label">Agregá una imagen al final de la proyección (se puede repetir) o borrala del todo.</div>
+                <div className="queue-list">
+                  {slideImages.map(img => (
+                    <div key={img.id} className="queue-item">
+                      <img src={img.data} alt="" className="slide-thumb" />
+                      <div style={{ flex: 1 }}>{img.name}</div>
+                      <div className="queue-actions">
+                        <button className="ctrl-btn" style={{ padding: '4px 6px' }} onClick={() => addToIntro(img.id)} title="Agregar a la proyección">
+                          <i className="ti ti-plus" />
+                        </button>
+                        <button className="ctrl-btn" style={{ padding: '4px 6px', color: 'var(--accent)' }} onClick={() => deleteImage(img)} title="Borrar imagen">
+                          <i className="ti ti-trash" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

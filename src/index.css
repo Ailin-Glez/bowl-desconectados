@@ -614,3 +614,12 @@ textarea:focus { outline: none; border-color: var(--accent); }
   left: 8vw;
   z-index: 1;
 }
+
+.slide-thumb {
+  width: 64px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #0f0f0f;
+  flex-shrink: 0;
+}
