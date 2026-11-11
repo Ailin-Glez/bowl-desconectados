@@ -4,13 +4,14 @@ import { db, isConfigured } from '../firebase'
 import logo from '../assets/logo web.png'
 import { BUNDLED_INTRO } from '../slideImages'
 
-function buildSlides(entries, introImages) {
+function buildSlides(entries, introImages, outroImages) {
   const slides = introImages.map(src => ({ type: 'image', src }))
   slides.push({ type: 'logo' })
   for (const entry of entries) {
     slides.push({ type: 'answer', entry })
     slides.push({ type: 'logo' })
   }
+  for (const src of outroImages) slides.push({ type: 'image', src })
   return slides
 }
 
@@ -19,6 +20,7 @@ export default function ShowView() {
   const [entryOrder, setEntryOrder] = useState([])
   const [index, setIndex] = useState(0)
   const [introOrder, setIntroOrder] = useState(null) // null = sin configurar
+  const [outroOrder, setOutroOrder] = useState([])
   const [imageDocs, setImageDocs] = useState({})
   const slidesRef = useRef([])
 
@@ -70,6 +72,7 @@ export default function ShowView() {
         setIndex(d.showIndex ?? 0)
         if (d.entryOrder?.length) setEntryOrder(d.entryOrder)
         setIntroOrder(Array.isArray(d.introSlides) ? d.introSlides : null)
+        setOutroOrder(Array.isArray(d.outroSlides) ? d.outroSlides : [])
       }
     })
   }, [])
@@ -97,7 +100,9 @@ export default function ShowView() {
     ? BUNDLED_INTRO
     : introOrder.map(id => imageDocs[id]).filter(Boolean)
 
-  const slides = buildSlides(sortedEntries, introImages)
+  const outroImages = outroOrder.map(id => imageDocs[id]).filter(Boolean)
+
+  const slides = buildSlides(sortedEntries, introImages, outroImages)
   slidesRef.current = slides
   const total = slides.length
   const slide = slides[index]
