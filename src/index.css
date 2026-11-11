@@ -549,7 +549,10 @@ textarea:focus { outline: none; border-color: var(--accent); }
   gap: 1.5rem;
   padding-top: 2vh;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .25s;
 }
+.show-nav:hover { opacity: 1; }
 .show-nav-btn {
   background: none;
   border: 1px solid rgba(255,255,255,0.15);
