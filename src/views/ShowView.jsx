@@ -96,11 +96,13 @@ export default function ShowView() {
     ? entryOrder.map(id => entries.find(e => e.id === id)).filter(Boolean)
     : entries
 
+  // Una imagen que todavía se está descargando ocupa igual su lugar (slide negro),
+  // así la cantidad de slides —y el número de slide sincronizado— no cambia mientras carga.
   const introImages = introOrder === null
     ? BUNDLED_INTRO
-    : introOrder.map(id => imageDocs[id]).filter(Boolean)
+    : introOrder.map(id => imageDocs[id] ?? null)
 
-  const outroImages = outroOrder.map(id => imageDocs[id]).filter(Boolean)
+  const outroImages = outroOrder.map(id => imageDocs[id] ?? null)
 
   const slides = buildSlides(sortedEntries, introImages, outroImages)
   slidesRef.current = slides
@@ -118,7 +120,9 @@ export default function ShowView() {
   return (
     <div className="show-page">
       {slide?.type === 'image' ? (
-        <img key={index} src={slide.src} alt="" className="show-image-slide" />
+        slide.src
+          ? <img key={index} src={slide.src} alt="" className="show-image-slide" />
+          : <div key={index} className="show-image-slide" />
       ) : slide?.type === 'logo' ? (
         <div key={index} className="show-logo-slide">
           <div className="show-slide-tagline">

@@ -45,6 +45,7 @@ export default function StageView() {
   const [order, setOrder] = useState([])
   const entriesRef = useRef([])
   const orderLoaded = useRef(false)
+  const formLoaded = useRef(false)
   const [orderSaved, setOrderSaved] = useState(false)
   const [submissionsClosed, setSubmissionsClosed] = useState(false)
 
@@ -104,8 +105,13 @@ export default function StageView() {
         const questions = d.questions?.length ? d.questions : DEFAULT_QUESTIONS
         const nombre = d.nombre || DEFAULTS.nombre
         setConfig({ questions, nombre })
-        setQuestionsText(questions.join('\n'))
-        setNombreForm(nombre)
+        // Cargar el formulario solo la primera vez: config/main se actualiza seguido
+        // (imágenes, número de slide, bowl) y no queremos pisar lo que se está escribiendo.
+        if (!formLoaded.current) {
+          formLoaded.current = true
+          setQuestionsText(questions.join('\n'))
+          setNombreForm(nombre)
+        }
         setSubmissionsClosed(d.submissionsClosed ?? false)
         setIntroOrder(Array.isArray(d.introSlides) ? d.introSlides : null)
         setOutroOrder(Array.isArray(d.outroSlides) ? d.outroSlides : [])
